@@ -49,6 +49,11 @@ def load_data():
 
     # Reset index
     data = data.reset_index(drop=True)
+    # Fix State name inconsistencies
+    data["State"] = data["State"].replace({
+    "Maharastra": "Maharashtra",
+    "Jammu and Kashmir": "Jammu & Kashmir"
+})
 
     return data
 
