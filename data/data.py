@@ -1,74 +1,49 @@
 import pandas as pd
-import os
 
+def load_places():
+    df = pd.read_csv("data/Top Indian Places to Visit.csv")
 
-def load_data():
-    """
-    Load and clean travel dataset
-    """
+    df = df.fillna("")
+    df.columns = df.columns.str.strip()
 
-    BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-    file_path = os.path.join(BASE_DIR, "data", "Top Indian Places to Visit.csv")
+    # Convert everything to string (VERY IMPORTANT FIX)
+    for col in df.columns:
+        df[col] = df[col].astype(str)
 
-    # Load CSV
-    data = pd.read_csv(file_path)
+    # Detect category column
+    category_col = None
+    for col in df.columns:
+        if col.lower() in ["category", "type", "tags", "theme"]:
+            category_col = col
+            break
 
-    # Remove extra spaces from column names
-    data.columns = data.columns.str.strip()
+    if category_col is None:
+        category_col = df.columns[2]
 
-    # Drop unwanted column if exists
-    if "Unnamed: 0" in data.columns:
-        data = data.drop(columns=["Unnamed: 0"])
+    # Detect best time column
+    best_time_col = None
+    for col in df.columns:
+        if "time" in col.lower():
+            best_time_col = col
+            break
 
-    # Convert numeric columns safely
-    numeric_columns = [
-        "Google review rating",
-        "Number of google review in lakhs",
-        "Entrance Fee in INR",
-        "time needed to visit in hrs"
-    ]
+    # Create combined column
+    if best_time_col:
+        df["combined"] = (
+            df["Name"] + " " +
+            df["State"] + " " +
+            df[category_col] + " " +
+            df[best_time_col]
+        )
+    else:
+        df["combined"] = (
+            df["Name"] + " " +
+            df["State"] + " " +
+            df[category_col]
+        )
 
-    for col in numeric_columns:
-        if col in data.columns:
-            data[col] = pd.to_numeric(data[col], errors="coerce")
+    df["Category"] = df[category_col]
 
-    # Fill missing values instead of dropping everything
-    data["Google review rating"] = data["Google review rating"].fillna(
-        data["Google review rating"].mean()
-    )
+    places = df.to_dict("records")
 
-    data["Number of google review in lakhs"] = data[
-        "Number of google review in lakhs"
-    ].fillna(0)
-
-    # Drop rows where Name or Type missing
-    data = data.dropna(subset=["Name", "Type", "State"])
-
-    # Remove duplicates
-    data = data.drop_duplicates(subset="Name")
-
-    # Reset index
-    data = data.reset_index(drop=True)
-    # Fix State name inconsistencies
-    data["State"] = data["State"].replace({
-    "Maharastra": "Maharashtra",
-    "Jammu and Kashmir": "Jammu & Kashmir"
-})
-
-    return data
-
-
-if __name__ == "__main__":
-
-    data = load_data()
-
-    print("\nDataset Loaded Successfully\n")
-
-    print("Total rows:", len(data))
-    print("Total unique places:", data["Name"].nunique())
-
-    print("\nColumns:\n")
-    print(data.columns)
-
-    print("\nSample Data:\n")
-    print(data.head())
+    return places, df
